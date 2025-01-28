@@ -15,7 +15,7 @@ How to Play
 •	Press SPACE to auto-solve the puzzle.
 •	Close the window to exit the game.
 
-
+********************* For participants **************************
 Instruction for unit testing
 Implementing Pytest for Time-Driven Development (TDD)
 1. Setup pytest pip install pytest pytest-benchmark
