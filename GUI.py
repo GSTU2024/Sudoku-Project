@@ -1,8 +1,9 @@
-# GUI.py
 import pygame
 import time
 pygame.font.init()
 
+# Adjusted window size for better spacing
+WIN_WIDTH, WIN_HEIGHT = 600, 750
 
 class Grid:
     board = [
@@ -20,13 +21,13 @@ class Grid:
     def __init__(self, rows, cols, width, height, win):
         self.rows = rows
         self.cols = cols
-        self.cubes = [[Cube(self.board[i][j], i, j, width, height) for j in range(cols)] for i in range(rows)]
         self.width = width
         self.height = height
+        self.win = win
+        self.cubes = [[Cube(self.board[i][j], i, j, width, height) for j in range(cols)] for i in range(rows)]
         self.model = None
         self.update_model()
         self.selected = None
-        self.win = win
 
     def update_model(self):
         self.model = [[self.cubes[i][j].value for j in range(self.cols)] for i in range(self.rows)]
@@ -49,28 +50,24 @@ class Grid:
         row, col = self.selected
         self.cubes[row][col].set_temp(val)
 
-    def draw(self):
-        # Draw Grid Lines
+    def draw(self, x_offset, y_offset):
         gap = self.width / 9
         for i in range(self.rows+1):
             if i % 3 == 0 and i != 0:
                 thick = 4
             else:
                 thick = 1
-            pygame.draw.line(self.win, (0,0,0), (0, i*gap), (self.width, i*gap), thick)
-            pygame.draw.line(self.win, (0, 0, 0), (i * gap, 0), (i * gap, self.height), thick)
+            pygame.draw.line(self.win, (0, 0, 0), (x_offset, i * gap + y_offset), (self.width + x_offset, i * gap + y_offset), thick)
+            pygame.draw.line(self.win, (0, 0, 0), (i * gap + x_offset, 0 + y_offset), (i * gap + x_offset, self.height + y_offset), thick)
 
-        # Draw Cubes
         for i in range(self.rows):
             for j in range(self.cols):
-                self.cubes[i][j].draw(self.win)
+                self.cubes[i][j].draw(self.win, x_offset, y_offset)
 
     def select(self, row, col):
-        # Reset all other
         for i in range(self.rows):
             for j in range(self.cols):
                 self.cubes[i][j].selected = False
-
         self.cubes[row][col].selected = True
         self.selected = (row, col)
 
@@ -80,15 +77,11 @@ class Grid:
             self.cubes[row][col].set_temp(0)
 
     def click(self, pos):
-        """
-        :param: pos
-        :return: (row, col)
-        """
         if pos[0] < self.width and pos[1] < self.height:
             gap = self.width / 9
             x = pos[0] // gap
             y = pos[1] // gap
-            return (int(y),int(x))
+            return (int(y), int(x))
         else:
             return None
 
@@ -160,32 +153,29 @@ class Cube:
         self.height = height
         self.selected = False
 
-    def draw(self, win):
+    def draw(self, win, x_offset, y_offset):
         fnt = pygame.font.SysFont("comicsans", 40)
-
         gap = self.width / 9
-        x = self.col * gap
-        y = self.row * gap
+        x = self.col * gap + x_offset
+        y = self.row * gap + y_offset
 
         if self.temp != 0 and self.value == 0:
-            text = fnt.render(str(self.temp), 1, (128,128,128))
-            win.blit(text, (x+5, y+5))
-        elif not(self.value == 0):
+            text = fnt.render(str(self.temp), 1, (128, 128, 128))
+            win.blit(text, (x + 5, y + 5))
+        elif self.value != 0:
             text = fnt.render(str(self.value), 1, (0, 0, 0))
-            win.blit(text, (x + (gap/2 - text.get_width()/2), y + (gap/2 - text.get_height()/2)))
+            win.blit(text, (x + (gap / 2 - text.get_width() / 2), y + (gap / 2 - text.get_height() / 2)))
 
         if self.selected:
-            pygame.draw.rect(win, (255,0,0), (x,y, gap ,gap), 3)
+            pygame.draw.rect(win, (255, 0, 0), (x, y, gap, gap), 3)
 
     def draw_change(self, win, g=True):
         fnt = pygame.font.SysFont("comicsans", 40)
-
         gap = self.width / 9
         x = self.col * gap
         y = self.row * gap
 
         pygame.draw.rect(win, (255, 255, 255), (x, y, gap, gap), 0)
-
         text = fnt.render(str(self.value), 1, (0, 0, 0))
         win.blit(text, (x + (gap / 2 - text.get_width() / 2), y + (gap / 2 - text.get_height() / 2)))
         if g:
@@ -205,65 +195,61 @@ def find_empty(bo):
         for j in range(len(bo[0])):
             if bo[i][j] == 0:
                 return (i, j)  # row, col
-
     return None
 
 
 def valid(bo, num, pos):
-    # Check row
     for i in range(len(bo[0])):
         if bo[pos[0]][i] == num and pos[1] != i:
             return False
 
-    # Check column
     for i in range(len(bo)):
         if bo[i][pos[1]] == num and pos[0] != i:
             return False
 
-    # Check box
     box_x = pos[1] // 3
     box_y = pos[0] // 3
 
-    for i in range(box_y*3, box_y*3 + 3):
-        for j in range(box_x * 3, box_x*3 + 3):
-            if bo[i][j] == num and (i,j) != pos:
+    for i in range(box_y * 3, box_y * 3 + 3):
+        for j in range(box_x * 3, box_x * 3 + 3):
+            if bo[i][j] == num and (i, j) != pos:
                 return False
 
     return True
 
 
 def redraw_window(win, board, time, strikes):
-    win.fill((255,255,255))
-    # Draw time
-    fnt = pygame.font.SysFont("comicsans", 40)
-    text = fnt.render("Time: " + format_time(time), 1, (0,0,0))
-    win.blit(text, (540 - 160, 560))
-    # Draw Strikes
+    win.fill((255, 255, 255))  # White background
+
+    # Time display with large font and bold style
+    fnt = pygame.font.SysFont("comicsans", 50, bold=True)
+    text = fnt.render("Time: " + format_time(time), 1, (0, 0, 0))
+    win.blit(text, (WIN_WIDTH // 2 - text.get_width() // 2, WIN_HEIGHT - 100))  # Centered time display
+
+    # Strikes display in red color
     text = fnt.render("X " * strikes, 1, (255, 0, 0))
-    win.blit(text, (20, 560))
-    # Draw grid and board
-    board.draw()
+    win.blit(text, (20, WIN_HEIGHT - 100))  # Positioned to the left
+
+    # Center the Sudoku grid vertically
+    grid_top = (WIN_HEIGHT - 100 - 400) // 2  # Adjust the grid's Y position
+    board.draw((WIN_WIDTH - 400) // 2, grid_top)
 
 
 def format_time(secs):
-    sec = secs%60
-    minute = secs//60
-    hour = minute//60
-
-    mat = " " + str(minute) + ":" + str(sec)
-    return mat
+    sec = secs % 60
+    minute = secs // 60
+    return f"{minute}:{sec:02d}"
 
 
 def main():
-    win = pygame.display.set_mode((540,600))
+    win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))  # Adjusted window size
     pygame.display.set_caption("Sudoku")
-    board = Grid(9, 9, 540, 540, win)
+    board = Grid(9, 9, 400, 400, win)  # Reduce grid size
     key = None
     run = True
     start = time.time()
     strikes = 0
     while run:
-
         play_time = round(time.time() - start)
 
         for event in pygame.event.get():
